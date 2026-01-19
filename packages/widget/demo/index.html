@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SnapStudio - Demo</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    
+    .demo-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    .demo-header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+    }
+    
+    .demo-header h1 {
+      margin: 0 0 10px 0;
+      font-size: 2.5rem;
+    }
+    
+    .demo-header p {
+      margin: 0;
+      opacity: 0.9;
+    }
+    
+    .demo-config {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .demo-config h3 {
+      margin: 0 0 15px 0;
+      font-size: 1rem;
+      color: #64748b;
+    }
+    
+    .demo-config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+    }
+    
+    .demo-config label {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 0.875rem;
+      color: #334155;
+    }
+    
+    .demo-config input,
+    .demo-config select {
+      padding: 10px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.875rem;
+    }
+    
+    .demo-config input:focus,
+    .demo-config select:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    #widget-container {
+      background: transparent;
+    }
+    
+    .demo-footer {
+      text-align: center;
+      color: white;
+      margin-top: 30px;
+      padding: 20px;
+      opacity: 0.8;
+      font-size: 0.875rem;
+    }
+    
+    .demo-footer a {
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <div class="demo-header">
+      <h1>🔥 SnapStudio</h1>
+      <p>Visualisez votre poêle dans votre intérieur</p>
+    </div>
+    
+    <div class="demo-config">
+      <h3>⚙️ Configuration (pour test)</h3>
+      <div class="demo-config-grid">
+        <label>
+          API URL
+          <input 
+            type="text" 
+            id="config-api-url" 
+            value="https://odspcxgafcqxjzrarsqf.supabase.co/functions/v1/generate"
+          />
+        </label>
+        <label>
+          Couleur primaire
+          <input 
+            type="color" 
+            id="config-primary-color" 
+            value="#2563eb"
+          />
+        </label>
+        <label>
+          Texte CTA
+          <input 
+            type="text" 
+            id="config-cta-text" 
+            value="Demander un devis"
+          />
+        </label>
+        <label>
+          URL CTA
+          <input 
+            type="text" 
+            id="config-cta-url" 
+            value="https://example.com/contact"
+          />
+        </label>
+      </div>
+    </div>
+    
+    <div id="widget-container"></div>
+    
+    <div class="demo-footer">
+      <p>SnapStudio Widget Demo • <a href="https://github.com/Ricou-IA/snapstudio">GitHub</a></p>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+{
+    "name": "@snapstudio/widget",
+    "version": "0.1.0",
+    "description": "Widget React pour génération d'images IA - SnapStudio",
+    "type": "module",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "import": "./dist/index.js",
+        "require": "./dist/index.cjs",
+        "types": "./dist/index.d.ts"
+      },
+      "./styles.css": "./dist/styles.css"
+    },
+    "files": [
+      "dist"
+    ],
+    "scripts": {
+      "dev": "vite",
+      "build": "tsc --project tsconfig.json && vite build",
+      "preview": "vite preview",
+      "lint": "eslint src --ext ts,tsx"
+    },
+    "peerDependencies": {
+      "react": ">=18.0.0",
+      "react-dom": ">=18.0.0"
+    },
+    "devDependencies": {
+      "@types/react": "^18.2.48",
+      "@types/react-dom": "^18.2.18",
+      "@vitejs/plugin-react": "^4.2.1",
+      "react": "^18.2.0",
+      "react-dom": "^18.2.0",
+      "typescript": "^5.3.3",
+      "vite": "^5.0.12",
+      "vite-plugin-dts": "^3.7.1"
+    },
+    "keywords": [
+      "react",
+      "widget",
+      "ai",
+      "image-generation",
+      "hvac",
+      "snapstudio"
+    ],
+    "author": "Confer SAS",
+    "license": "UNLICENSED",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Ricou-IA/snapstudio.git"
+    }
+  }
+  

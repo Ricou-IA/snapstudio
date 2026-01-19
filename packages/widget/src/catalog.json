@@ -1,0 +1,45 @@
+{
+  "id": "hvac-poeles-bois",
+  "name": "Poêles à bois",
+  "vertical": "hvac",
+  "assets": [
+    {
+      "id": "invicta-ora-1",
+      "name": "Invicta Ora",
+      "brand": "Invicta",
+      "description": "Poêle à bois contemporain noir avec design arrondi et large vitre panoramique, flammes visibles",
+      "imageUrl": "https://www.invicta.fr/media/catalog/product/cache/1/image/9df78eab33525d08d6e5fb8d27136e95/p/6/p601384_art.png",
+      "imageThumbnail": "https://www.invicta.fr/media/catalog/product/cache/1/image/9df78eab33525d08d6e5fb8d27136e95/p/6/p601384_art.png",
+      "metadata": {
+        "puissance_kw": 7,
+        "rendement_pct": 79,
+        "dimensions": {
+          "h": 1150,
+          "l": 560,
+          "p": 440
+        },
+        "style": "contemporain",
+        "couleur": "noir"
+      }
+    },
+    {
+      "id": "invicta-alcor-1",
+      "name": "Invicta Alcor",
+      "brand": "Invicta",
+      "description": "Poêle à bois cylindrique noir avec lignes horizontales rainurées et grande vitre, design moderne",
+      "imageUrl": "https://www.invicta.fr/media/catalog/product/cache/1/image/9df78eab33525d08d6e5fb8d27136e95/p/6/p601384_3.png",
+      "imageThumbnail": "https://www.invicta.fr/media/catalog/product/cache/1/image/9df78eab33525d08d6e5fb8d27136e95/p/6/p601384_3.png",
+      "metadata": {
+        "puissance_kw": 6,
+        "rendement_pct": 78,
+        "dimensions": {
+          "h": 1160,
+          "l": 442,
+          "p": 442
+        },
+        "style": "moderne",
+        "couleur": "noir"
+      }
+    }
+  ]
+}
