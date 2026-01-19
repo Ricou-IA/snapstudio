@@ -1,0 +1,17 @@
+{
+  "name": "snapstudio",
+  "version": "2.0.0",
+  "private": true,
+  "description": "SnapStudio - Plateforme de visualisation IA",
+  "scripts": {
+    "dev": "cd packages/widget && npm run dev",
+    "build": "cd packages/widget && npm run build",
+    "widget:dev": "cd packages/widget && npm run dev",
+    "widget:build": "cd packages/widget && npm run build",
+    "functions:deploy": "supabase functions deploy",
+    "functions:deploy:generate": "supabase functions deploy generate --no-verify-jwt"
+  },
+  "keywords": ["snapstudio", "ai", "visualization"],
+  "author": "Confer SAS",
+  "license": "UNLICENSED"
+}

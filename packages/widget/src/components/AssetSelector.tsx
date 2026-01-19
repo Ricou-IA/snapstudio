@@ -1,3 +1,7 @@
+// ============================================
+// AssetSelector V2
+// ============================================
+
 import { useState, useMemo } from 'react';
 import type { Asset } from '../types';
 
@@ -5,20 +9,29 @@ interface AssetSelectorProps {
   assets: Asset[];
   selectedAsset: Asset | null;
   onSelect: (asset: Asset) => void;
+  compact?: boolean;
 }
 
 export function AssetSelector({
   assets,
   selectedAsset,
   onSelect,
+  compact = false,
 }: AssetSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBrand, setFilterBrand] = useState<string>('all');
+  const [filterFuel, setFilterFuel] = useState<string>('all');
 
   // Extraire les marques uniques
   const brands = useMemo(() => {
-    const uniqueBrands = [...new Set(assets.map((a) => a.brand))];
+    const uniqueBrands = [...new Set(assets.map((a) => a.brand.name))];
     return uniqueBrands.sort();
+  }, [assets]);
+
+  // Extraire les types de combustible
+  const fuelTypes = useMemo(() => {
+    const uniqueFuels = [...new Set(assets.map((a) => a.fuelType))];
+    return uniqueFuels;
   }, [assets]);
 
   // Filtrer les assets
@@ -27,20 +40,47 @@ export function AssetSelector({
       const matchesSearch =
         searchTerm === '' ||
         asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.description.toLowerCase().includes(searchTerm.toLowerCase());
+        asset.brand.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.description?.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesBrand =
-        filterBrand === 'all' || asset.brand === filterBrand;
+        filterBrand === 'all' || asset.brand.name === filterBrand;
 
-      return matchesSearch && matchesBrand;
+      const matchesFuel =
+        filterFuel === 'all' || asset.fuelType === filterFuel;
+
+      return matchesSearch && matchesBrand && matchesFuel;
     });
-  }, [assets, searchTerm, filterBrand]);
+  }, [assets, searchTerm, filterBrand, filterFuel]);
+
+  // Mode compact : dropdown simple
+  if (compact) {
+    return (
+      <div className="snapstudio-selector-compact">
+        <label>
+          Poêle sélectionné :
+          <select
+            value={selectedAsset?.id || ''}
+            onChange={(e) => {
+              const asset = assets.find((a) => a.id === e.target.value);
+              if (asset) onSelect(asset);
+            }}
+          >
+            {assets.map((asset) => (
+              <option key={asset.id} value={asset.id}>
+                {asset.brand.name} {asset.name} - {asset.powerKw}kW
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+    );
+  }
 
   return (
     <div className="snapstudio-selector">
       <h3 className="snapstudio-selector-title">
-        Choisissez votre poêle
+        🔥 Choisissez votre poêle
       </h3>
 
       {/* Filtres */}
@@ -57,12 +97,27 @@ export function AssetSelector({
           <select
             value={filterBrand}
             onChange={(e) => setFilterBrand(e.target.value)}
-            className="snapstudio-selector-brand"
+            className="snapstudio-selector-filter"
           >
             <option value="all">Toutes les marques</option>
             {brands.map((brand) => (
               <option key={brand} value={brand}>
                 {brand}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {fuelTypes.length > 1 && (
+          <select
+            value={filterFuel}
+            onChange={(e) => setFilterFuel(e.target.value)}
+            className="snapstudio-selector-filter"
+          >
+            <option value="all">Tous types</option>
+            {fuelTypes.map((fuel) => (
+              <option key={fuel} value={fuel}>
+                {fuel === 'bois' ? '🪵 Bois' : '🔶 Granulés'}
               </option>
             ))}
           </select>
@@ -86,44 +141,32 @@ export function AssetSelector({
             >
               <div className="snapstudio-asset-image">
                 <img
-                  src={asset.imageThumbnail || asset.imageUrl}
+                  src={asset.imageDetoureeUrl}
                   alt={asset.name}
                   loading="lazy"
                 />
               </div>
               <div className="snapstudio-asset-info">
-                <span className="snapstudio-asset-brand">{asset.brand}</span>
+                <span className="snapstudio-asset-brand">{asset.brand.name}</span>
                 <span className="snapstudio-asset-name">{asset.name}</span>
-                {asset.metadata?.puissance_kw && (
-                  <span className="snapstudio-asset-power">
-                    {asset.metadata.puissance_kw} kW
+                <div className="snapstudio-asset-specs">
+                  {asset.powerKw && (
+                    <span className="snapstudio-asset-power">
+                      {asset.powerKw} kW
+                    </span>
+                  )}
+                  <span className="snapstudio-asset-fuel">
+                    {asset.fuelType === 'bois' ? '🪵' : '🔶'}
                   </span>
-                )}
+                </div>
               </div>
               {selectedAsset?.id === asset.id && (
-                <div className="snapstudio-asset-selected">
-                  ✓
-                </div>
+                <div className="snapstudio-asset-selected">✓</div>
               )}
             </div>
           ))
         )}
       </div>
-
-      {/* Info sélection */}
-      {selectedAsset && (
-        <div className="snapstudio-selector-selected">
-          <p>
-            <strong>Sélectionné :</strong> {selectedAsset.brand} {selectedAsset.name}
-          </p>
-          <button
-            className="snapstudio-btn-primary"
-            onClick={() => {}}
-          >
-            Continuer →
-          </button>
-        </div>
-      )}
     </div>
   );
 }

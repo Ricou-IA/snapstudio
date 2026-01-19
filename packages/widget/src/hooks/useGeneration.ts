@@ -1,84 +1,77 @@
+// ============================================
+// Hook useGeneration V2
+// ============================================
+
 import { useState, useCallback } from 'react';
 import type {
-  Asset,
-  GenerationOptions,
+  SnapStudioConfig,
+  GenerateRequest,
   GenerateResponse,
   GenerationStatus,
 } from '../types';
+import { SnapStudioClient } from '../api/client';
 
 interface UseGenerationProps {
-  apiUrl: string;
-  onGenerated?: (result: GenerateResponse) => void;
+  config: SnapStudioConfig;
+  onSuccess?: (result: GenerateResponse) => void;
   onError?: (error: Error) => void;
+  onLimitReached?: () => void;
 }
 
 interface UseGenerationReturn {
   status: GenerationStatus;
   result: GenerateResponse | null;
   error: string | null;
-  generate: (
-    roomImage: string,
-    asset: Asset,
-    options?: GenerationOptions
-  ) => Promise<void>;
+  generate: (request: Omit<GenerateRequest, 'mockMode'>) => Promise<void>;
   reset: () => void;
 }
 
 export function useGeneration({
-  apiUrl,
-  onGenerated,
+  config,
+  onSuccess,
   onError,
+  onLimitReached,
 }: UseGenerationProps): UseGenerationReturn {
   const [status, setStatus] = useState<GenerationStatus>('idle');
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const generate = useCallback(
-    async (
-      roomImage: string,
-      asset: Asset,
-      options?: GenerationOptions
-    ) => {
+    async (request: Omit<GenerateRequest, 'mockMode'>) => {
       setStatus('generating');
       setError(null);
       setResult(null);
 
       try {
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            roomImage,
-            asset: {
-              id: asset.id,
-              name: asset.name,
-              description: asset.description,
-              imageUrl: asset.imageUrl,
-            },
-            options,
-          }),
+        const client = new SnapStudioClient(config);
+        
+        const response = await client.generate({
+          ...request,
+          mockMode: config.mockMode,
         });
 
-        const data: GenerateResponse = await response.json();
-
-        if (!response.ok || !data.success) {
-          throw new Error(data.error || 'Erreur lors de la génération');
-        }
-
-        setResult(data);
+        setResult(response);
         setStatus('completed');
-        onGenerated?.(data);
+        onSuccess?.(response);
+
+        // Vérifier si c'était la dernière simulation
+        if (response.simulationsRemaining <= 0) {
+          onLimitReached?.();
+        }
       } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : 'Erreur inconnue';
-        setError(errorMessage);
-        setStatus('error');
-        onError?.(err instanceof Error ? err : new Error(errorMessage));
+        const error = err as Error & { code?: string };
+        
+        if (error.code === 'limit_reached') {
+          setStatus('limit_reached');
+          onLimitReached?.();
+        } else {
+          setError(error.message);
+          setStatus('error');
+          onError?.(error);
+        }
       }
     },
-    [apiUrl, onGenerated, onError]
+    [config, onSuccess, onError, onLimitReached]
   );
 
   const reset = useCallback(() => {

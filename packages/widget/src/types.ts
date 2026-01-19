@@ -1,117 +1,239 @@
 // ============================================
-// Types SnapStudio Widget
+// Types SnapStudio Widget V2
 // ============================================
 
-/** Asset (poêle, produit) du catalogue */
+/** Configuration du widget */
+export interface SnapStudioConfig {
+  supabaseUrl: string;
+  supabaseAnonKey: string;
+  mockMode?: boolean;
+}
+
+/** Asset (poêle) du catalogue */
 export interface Asset {
+  id: string;
+  reference: string;
+  name: string;
+  description: string;
+  imageDetouree: string;      // Path dans Storage (PNG transparent)
+  imageDetoureeUrl?: string;  // URL publique complète
+  imageOriginal?: string;
+  powerKw?: number;
+  efficiencyPct?: number;
+  fuelType: 'granules' | 'bois';
+  priceFrom?: number;
+  style?: string;
+  sizeCategory?: string;
+  brand: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  catalog: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+}
+
+/** Lead (prospect) */
+export interface Lead {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  address?: string;
+  simulationsCount: number;
+  simulationsLimit: number;
+  simulationsRemaining: number;
+  status: 'new' | 'simulated' | 'rdv_booked' | 'converted' | 'lost';
+  canBookRdv: boolean;
+  leadToken: string;
+}
+
+/** Données de dimensionnement */
+export interface DimensioningData {
+  houseSize: '<80' | '80-120' | '120-180' | '>180';
+  roomSize: '<30' | '30-50' | '50-80' | '>80';
+  multiRoom: boolean;
+  hasChimney: 'yes' | 'no' | 'unknown';
+  isReplacement: boolean;
+  currentBrand?: string;
+  currentModel?: string;
+  objective: 'performance' | 'performance_design';
+}
+
+/** Résultat d'une génération */
+export interface GenerationResult {
+  generationId: string;
+  resultImageUrl: string;
+  simulationsRemaining: number;
+  asset: {
     id: string;
     name: string;
     brand: string;
-    description: string;
-    imageUrl: string;
-    imageThumbnail?: string;
-    metadata?: {
-      puissance_kw?: number;
-      rendement_pct?: number;
-      dimensions?: {
-        h: number;
-        l: number;
-        p: number;
-      };
-      [key: string]: unknown;
-    };
-  }
-  
-  /** Catalogue d'assets */
-  export interface Catalog {
+  };
+}
+
+/** Génération historique */
+export interface Generation {
+  id: string;
+  resultImagePath: string;
+  resultImageUrl?: string;
+  asset: {
     id: string;
     name: string;
-    vertical: string;
-    assets: Asset[];
-  }
+    brand: string;
+  };
+  createdAt: string;
+}
+
+/** Créneau disponible */
+export interface TimeSlot {
+  datetime: string;
+  commercialId: string;
+  commercialName: string;
+}
+
+/** Rendez-vous confirmé */
+export interface Appointment {
+  id: string;
+  datetime: string;
+  commercialName: string;
+  address: string;
+}
+
+/** État de la génération */
+export type GenerationStatus =
+  | 'idle'
+  | 'uploading'
+  | 'drawing'
+  | 'generating'
+  | 'completed'
+  | 'error'
+  | 'limit_reached';
+
+/** Étapes du widget */
+export type WidgetStep =
+  | 'upload'
+  | 'mask'
+  | 'generating'
+  | 'result'
+  | 'limit';
+
+/** Props du composant principal */
+export interface SnapStudioProps {
+  /** Configuration API */
+  config: SnapStudioConfig;
   
-  /** Options de génération */
-  export interface GenerationOptions {
-    position?: "auto" | "left" | "center" | "right";
-    style?: "realistic" | "magazine" | "warm";
-  }
+  /** Token du lead (après formulaire) */
+  leadToken: string;
   
-  /** Requête envoyée à l'API */
-  export interface GenerateRequest {
-    roomImage: string;
-    asset: {
-      id: string;
-      name: string;
-      description: string;
-      imageUrl: string;
-    };
-    options?: GenerationOptions;
-  }
+  /** Asset pré-sélectionné */
+  initialAssetId?: string;
   
-  /** Réponse de l'API */
-  export interface GenerateResponse {
-    success: boolean;
-    image?: {
-      url: string;
-      width: number;
-      height: number;
-    };
-    prompt?: string;
-    seed?: number;
-    error?: string;
-    details?: string;
-  }
+  /** Liste des assets disponibles */
+  assets: Asset[];
   
-  /** État de la génération */
-  export type GenerationStatus = 
-    | "idle" 
-    | "uploading" 
-    | "generating" 
-    | "completed" 
-    | "error";
+  /** Nombre de simulations restantes */
+  simulationsRemaining: number;
   
-  /** Props du composant principal */
-  export interface SnapStudioProps {
-    /** URL de l'API (Edge Function) */
-    apiUrl: string;
-    
-    /** Vertical métier */
-    vertical?: "hvac" | "restaurant" | "immobilier" | "ecommerce";
-    
-    /** Catalogue personnalisé (sinon utilise le catalogue par défaut) */
-    catalog?: Catalog;
-    
-    /** Callback après génération réussie */
-    onGenerated?: (result: GenerateResponse) => void;
-    
-    /** Callback en cas d'erreur */
-    onError?: (error: Error) => void;
-    
-    /** Callback quand l'utilisateur clique sur le CTA */
-    onCtaClick?: (asset: Asset, resultImage: string) => void;
-    
-    /** Configuration du branding */
-    branding?: {
-      primaryColor?: string;
-      secondaryColor?: string;
-      logo?: string;
-      ctaText?: string;
-      ctaUrl?: string;
-      hidePoweredBy?: boolean;
-    };
-    
-    /** Classe CSS additionnelle */
-    className?: string;
-  }
+  /** Callback après génération réussie */
+  onSimulationComplete?: (result: GenerationResult) => void;
   
-  /** État interne du widget */
-  export interface WidgetState {
-    status: GenerationStatus;
-    roomImage: string | null;
-    roomImagePreview: string | null;
-    selectedAsset: Asset | null;
-    options: GenerationOptions;
-    result: GenerateResponse | null;
-    error: string | null;
-  }
+  /** Callback quand limite atteinte */
+  onLimitReached?: () => void;
   
+  /** Callback en cas d'erreur */
+  onError?: (error: Error) => void;
+  
+  /** Callback pour prise de RDV */
+  onBookAppointment?: () => void;
+  
+  /** Configuration du branding */
+  branding?: {
+    primaryColor?: string;
+    secondaryColor?: string;
+    logo?: string;
+  };
+  
+  /** Classe CSS additionnelle */
+  className?: string;
+}
+
+/** Props du MaskCanvas */
+export interface MaskCanvasProps {
+  /** Image de fond (base64 ou URL) */
+  backgroundImage: string;
+  
+  /** Callback quand le masque change */
+  onMaskChange: (maskData: string) => void;
+  
+  /** Callback pour lancer la génération */
+  onGenerate: () => void;
+  
+  /** Peut-on générer ? */
+  canGenerate: boolean;
+  
+  /** Génération en cours ? */
+  isGenerating?: boolean;
+}
+
+/** Props du ResultViewer */
+export interface ResultViewerProps {
+  /** Image originale */
+  originalImage: string;
+  
+  /** Image générée */
+  resultImage: string;
+  
+  /** Asset utilisé */
+  asset: Asset;
+  
+  /** Simulations restantes */
+  simulationsRemaining: number;
+  
+  /** Callback nouvelle simulation */
+  onNewSimulation: () => void;
+  
+  /** Callback téléchargement */
+  onDownload: () => void;
+}
+
+/** Props du LimitReached */
+export interface LimitReachedProps {
+  /** Générations effectuées */
+  generations: Generation[];
+  
+  /** Callback prise de RDV */
+  onBookAppointment: () => void;
+}
+
+/** Requête de génération */
+export interface GenerateRequest {
+  leadToken: string;
+  assetId: string;
+  inputImage: string;   // Base64
+  maskImage: string;    // Base64
+  mockMode?: boolean;
+}
+
+/** Réponse de génération */
+export interface GenerateResponse {
+  generationId: string;
+  resultImageUrl: string;
+  simulationsRemaining: number;
+  asset: {
+    id: string;
+    name: string;
+    brand: string;
+  };
+}
+
+/** Réponse erreur limite */
+export interface LimitReachedResponse {
+  error: 'limit_reached';
+  message: string;
+  cta: string;
+}
