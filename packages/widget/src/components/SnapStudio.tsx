@@ -1,5 +1,6 @@
 // ============================================
-// SnapStudio Widget V2 - Composant Principal
+// SnapStudio Widget V3 - Composant Principal
+// Pipeline B : Compositing Client-Side + IC-Light V2
 // ============================================
 
 import { useState, useCallback, useEffect } from 'react';
@@ -8,6 +9,7 @@ import type {
   Asset,
   WidgetStep,
   Generation,
+  MaskBoundingBox,
 } from '../types';
 import { useGeneration } from '../hooks/useGeneration';
 import { ImageUploader } from './ImageUploader';
@@ -40,6 +42,13 @@ export function SnapStudio({
   );
   const [remaining, setRemaining] = useState(initialRemaining);
   const [generations, setGenerations] = useState<Generation[]>([]);
+
+  // ============================================
+  // NOUVEL ÉTAT POUR PIPELINE B (COMPOSITING)
+  // ============================================
+  const [compositedImage, setCompositedImage] = useState<string | null>(null);
+  // Préfixé avec _ car utilisé seulement pour le logging
+  const [_maskBoundingBox, setMaskBoundingBox] = useState<MaskBoundingBox | null>(null);
 
   // Hook de génération
   const { status, result, error, generate, reset } = useGeneration({
@@ -92,6 +101,8 @@ export function SnapStudio({
   const handleImageUpload = useCallback((imageData: string) => {
     setUploadedImage(imageData);
     setMaskImage(null);
+    setCompositedImage(null); // Reset compositing
+    setMaskBoundingBox(null);
     setStep('mask');
   }, []);
 
@@ -100,24 +111,73 @@ export function SnapStudio({
     setMaskImage(maskData);
   }, []);
 
+  // ============================================
+  // NOUVELLE CALLBACK POUR IMAGE COMPOSITÉE
+  // ============================================
+  const handleCompositedImageReady = useCallback((
+    compositedBase64: string,
+    boundingBox: MaskBoundingBox | null
+  ) => {
+    console.log('[SnapStudio] Composited image ready:', {
+      hasImage: !!compositedBase64,
+      boundingBox,
+    });
+    setCompositedImage(compositedBase64);
+    setMaskBoundingBox(boundingBox);
+  }, []);
+
   // Changer d'asset
   const handleAssetChange = useCallback((asset: Asset) => {
     setSelectedAsset(asset);
+    // Reset le compositing quand on change d'asset
+    setCompositedImage(null);
+    setMaskBoundingBox(null);
   }, []);
 
-  // Lancer la génération
+  // ============================================
+  // GÉNÉRATION AVEC PIPELINE B
+  // ============================================
   const handleGenerate = useCallback(async () => {
-    if (!uploadedImage || !maskImage || !selectedAsset) return;
+    if (!uploadedImage || !selectedAsset) return;
 
+    // Vérifier si on a l'image compositée (Pipeline B) ou juste le masque (Pipeline A)
+    const usePipelineB = !!compositedImage;
+    
+    if (!usePipelineB && !maskImage) {
+      console.error('[SnapStudio] No composited image and no mask available');
+      return;
+    }
+
+    console.log(`[SnapStudio] Starting generation with Pipeline ${usePipelineB ? 'B' : 'A'}`);
     setStep('generating');
 
-    await generate({
-      leadToken,
-      assetId: selectedAsset.id,
-      inputImage: uploadedImage,
-      maskImage: maskImage,
-    });
-  }, [uploadedImage, maskImage, selectedAsset, leadToken, generate]);
+    if (usePipelineB) {
+      // ============================================
+      // PIPELINE B : Compositing + IC-Light V2
+      // La pièce reste 100% intacte !
+      // ============================================
+      await generate({
+        leadToken,
+        assetId: selectedAsset.id,
+        compositedImage: compositedImage,
+        inputImage: uploadedImage, // Optionnel, pour référence
+        // Options IC-Light (ajustables si besoin)
+        lightingIntensity: 0.6, // Harmonisation moyenne
+        skipRelighting: false,
+      });
+    } else {
+      // ============================================
+      // PIPELINE A : FLUX Kontext Inpaint (legacy)
+      // ⚠️ Peut modifier la pièce !
+      // ============================================
+      await generate({
+        leadToken,
+        assetId: selectedAsset.id,
+        inputImage: uploadedImage,
+        maskImage: maskImage!,
+      });
+    }
+  }, [uploadedImage, maskImage, compositedImage, selectedAsset, leadToken, generate]);
 
   // Nouvelle simulation
   const handleNewSimulation = useCallback(() => {
@@ -130,6 +190,8 @@ export function SnapStudio({
     // Réinitialiser pour nouvelle simulation
     setUploadedImage(null);
     setMaskImage(null);
+    setCompositedImage(null);
+    setMaskBoundingBox(null);
     reset();
     setStep('upload');
   }, [remaining, reset, onLimitReached]);
@@ -138,6 +200,8 @@ export function SnapStudio({
   const handleBackToUpload = useCallback(() => {
     setUploadedImage(null);
     setMaskImage(null);
+    setCompositedImage(null);
+    setMaskBoundingBox(null);
     setStep('upload');
   }, []);
 
@@ -151,11 +215,35 @@ export function SnapStudio({
     onBookAppointment?.();
   }, [onBookAppointment]);
 
+  // ============================================
+  // RÉCUPÉRER L'URL DU PNG DÉTOURÉ
+  // ============================================
+  const getAssetDetoureeUrl = useCallback((): string | undefined => {
+    if (!selectedAsset) return undefined;
+    
+    // Utiliser imageDetoureeUrl si disponible (URL complète)
+    if (selectedAsset.imageDetoureeUrl) {
+      return selectedAsset.imageDetoureeUrl;
+    }
+    
+    // Sinon construire l'URL depuis imageDetouree (path relatif)
+    if (selectedAsset.imageDetouree) {
+      return `${config.supabaseUrl}/storage/v1/object/public/snapstudio/${selectedAsset.imageDetouree}`;
+    }
+    
+    return undefined;
+  }, [selectedAsset, config.supabaseUrl]);
+
   // Styles personnalisés
   const customStyles = {
     '--ss-primary-color': branding.primaryColor || '#E63946',
     '--ss-secondary-color': branding.secondaryColor || '#1D3557',
   } as React.CSSProperties;
+
+  // Déterminer si on peut générer
+  // Pipeline B : besoin de compositedImage
+  // Pipeline A (fallback) : besoin de maskImage
+  const canGenerate = !!selectedAsset && (!!compositedImage || !!maskImage);
 
   return (
     <div className={`snapstudio-widget ${className}`} style={customStyles}>
@@ -205,16 +293,31 @@ export function SnapStudio({
           />
         )}
 
-        {/* Étape 2: Masque */}
+        {/* Étape 2: Masque avec Compositing */}
         {step === 'mask' && uploadedImage && (
           <div className="snapstudio-step-mask">
             <MaskCanvas
               backgroundImage={uploadedImage}
+              assetImageUrl={getAssetDetoureeUrl()}  // ← NOUVEAU : URL du PNG détouré
               onMaskChange={handleMaskChange}
+              onCompositedImageReady={handleCompositedImageReady}  // ← NOUVEAU : callback compositing
               onGenerate={handleGenerate}
-              canGenerate={!!maskImage && !!selectedAsset}
+              canGenerate={canGenerate}
               isGenerating={false}
             />
+            
+            {/* Indicateur de mode Pipeline */}
+            {compositedImage && (
+              <div className="snapstudio-pipeline-indicator">
+                ✅ Mode optimisé activé - Votre pièce sera préservée à 100%
+              </div>
+            )}
+            
+            {!compositedImage && maskImage && (
+              <div className="snapstudio-pipeline-indicator snapstudio-pipeline-warning">
+                ⚠️ Mode standard - Le PNG détouré n'est pas disponible
+              </div>
+            )}
             
             <button
               className="snapstudio-btn-back"

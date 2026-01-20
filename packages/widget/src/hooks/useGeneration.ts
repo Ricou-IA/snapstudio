@@ -47,7 +47,7 @@ export function useGeneration({
         
         const response = await client.generate({
           ...request,
-          mockMode: config.mockMode,
+          mockMode: false,  // FORCÉ À FALSE pour test réel avec fal.ai
         });
 
         setResult(response);

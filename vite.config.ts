@@ -8,16 +8,18 @@ export default defineConfig({
     react(),
     dts({
       insertTypesEntry: true,
-      include: ['src'],
+      include: ['packages/widget/src'],
     }),
   ],
+  root: '.',
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
+      entry: resolve(__dirname, 'packages/widget/src/index.ts'),
       name: 'SnapStudioWidget',
       formats: ['es', 'cjs'],
       fileName: (format) => `index.${format === 'es' ? 'js' : 'cjs'}`,
     },
+    outDir: 'dist',
     rollupOptions: {
       external: ['react', 'react-dom', 'react/jsx-runtime'],
       output: {
@@ -32,7 +34,10 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@': resolve(__dirname, 'packages/widget/src'),
     },
+  },
+  server: {
+    open: '/packages/widget/demo/index.html',
   },
 });

@@ -1,5 +1,6 @@
 /* ============================================
-   SnapStudio Widget V2 - Styles
+   SnapStudio Widget V3 - Styles
+   Support Pipeline B (Compositing + IC-Light)
    ============================================ */
 
 /* Variables */
@@ -13,6 +14,7 @@
   --ss-text-muted: #64748b;
   --ss-error-color: #dc2626;
   --ss-success-color: #16a34a;
+  --ss-warning-color: #f59e0b;
   --ss-radius: 12px;
   --ss-radius-sm: 8px;
   --ss-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -30,7 +32,7 @@
   border-radius: var(--ss-radius);
   box-shadow: var(--ss-shadow-lg);
   overflow: hidden;
-  max-width: 900px;
+  max-width: 800px;
   margin: 0 auto;
 }
 
@@ -41,26 +43,70 @@
 /* Header */
 .snapstudio-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   padding: 16px 24px;
   border-bottom: 1px solid var(--ss-border-color);
   background: var(--ss-bg-secondary);
 }
 
+.snapstudio-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.snapstudio-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.snapstudio-logo {
+  height: 32px;
+  width: auto;
+}
+
+.snapstudio-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--ss-text-color);
+}
+
 .snapstudio-counter {
   font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--ss-primary-color);
-  background: rgba(230, 57, 70, 0.1);
+  color: var(--ss-text-muted);
+  background: var(--ss-bg-color);
   padding: 6px 12px;
-  border-radius: 20px;
+  border-radius: var(--ss-radius-sm);
+  border: 1px solid var(--ss-border-color);
+}
+
+/* Asset Bar */
+.snapstudio-asset-bar {
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--ss-border-color);
+  background: var(--ss-bg-color);
 }
 
 /* Content */
 .snapstudio-content {
   padding: 24px;
   min-height: 400px;
+}
+
+/* Footer */
+.snapstudio-footer {
+  padding: 12px 24px;
+  border-top: 1px solid var(--ss-border-color);
+  background: var(--ss-bg-secondary);
+  text-align: center;
+}
+
+.snapstudio-footer span {
+  font-size: 0.75rem;
+  color: var(--ss-text-muted);
 }
 
 /* ============================================
@@ -88,12 +134,12 @@
 }
 
 .snapstudio-btn-primary:hover:not(:disabled) {
-  background: var(--ss-secondary-color);
+  filter: brightness(1.1);
   transform: translateY(-1px);
 }
 
 .snapstudio-btn-primary:disabled {
-  background: var(--ss-border-color);
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -103,8 +149,67 @@
   border: 1px solid var(--ss-border-color);
 }
 
-.snapstudio-btn-secondary:hover {
+.snapstudio-btn-secondary:hover:not(:disabled) {
   background: var(--ss-border-color);
+}
+
+.snapstudio-btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 16px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  color: var(--ss-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: var(--ss-transition);
+}
+
+.snapstudio-btn-back:hover {
+  color: var(--ss-text-color);
+}
+
+.snapstudio-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 0.875rem;
+  color: var(--ss-text-color);
+  background: var(--ss-bg-secondary);
+  border: 1px solid var(--ss-border-color);
+  border-radius: var(--ss-radius-sm);
+  cursor: pointer;
+  transition: var(--ss-transition);
+}
+
+.snapstudio-btn-icon:hover:not(:disabled) {
+  background: var(--ss-border-color);
+}
+
+.snapstudio-btn-icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.snapstudio-btn-change {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  border-radius: var(--ss-radius-sm);
+  cursor: pointer;
+  transition: var(--ss-transition);
+}
+
+.snapstudio-btn-change:hover {
+  background: rgba(0, 0, 0, 0.9);
 }
 
 /* ============================================
@@ -196,119 +301,177 @@
    Asset Selector
    ============================================ */
 
-.snapstudio-asset-selector {
+.snapstudio-selector {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
-.snapstudio-asset-selector-label {
+.snapstudio-selector-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.snapstudio-selector-filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.snapstudio-selector-search,
+.snapstudio-selector-brand {
+  padding: 10px 14px;
   font-size: 0.875rem;
-  font-weight: 500;
+  border: 1px solid var(--ss-border-color);
+  border-radius: var(--ss-radius-sm);
+  background: var(--ss-bg-color);
+  transition: var(--ss-transition);
+}
+
+.snapstudio-selector-search {
+  flex: 1;
+  min-width: 200px;
+}
+
+.snapstudio-selector-search:focus,
+.snapstudio-selector-brand:focus {
+  outline: none;
+  border-color: var(--ss-primary-color);
+  box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.1);
+}
+
+.snapstudio-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.snapstudio-selector-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px;
+  color: var(--ss-text-muted);
+}
+
+.snapstudio-asset-card {
+  position: relative;
+  border: 2px solid var(--ss-border-color);
+  border-radius: var(--ss-radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  transition: var(--ss-transition);
+  background: var(--ss-bg-color);
+}
+
+.snapstudio-asset-card:hover {
+  border-color: var(--ss-primary-color);
+  transform: translateY(-2px);
+  box-shadow: var(--ss-shadow);
+}
+
+.snapstudio-asset-card.selected {
+  border-color: var(--ss-primary-color);
+  background: rgba(230, 57, 70, 0.05);
+}
+
+.snapstudio-asset-image {
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--ss-bg-secondary);
+}
+
+.snapstudio-asset-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 8px;
+}
+
+.snapstudio-asset-info {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.snapstudio-asset-brand {
+  font-size: 0.75rem;
+  color: var(--ss-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.snapstudio-asset-name {
+  font-size: 0.875rem;
+  font-weight: 600;
   color: var(--ss-text-color);
 }
 
-.snapstudio-asset-dropdown {
-  position: relative;
+.snapstudio-asset-power {
+  font-size: 0.75rem;
+  color: var(--ss-text-muted);
 }
 
 .snapstudio-asset-selected {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  background: var(--ss-bg-color);
-  border: 1px solid var(--ss-border-color);
-  border-radius: var(--ss-radius-sm);
-  cursor: pointer;
-  transition: var(--ss-transition);
-}
-
-.snapstudio-asset-selected:hover {
-  border-color: var(--ss-primary-color);
-}
-
-.snapstudio-asset-selected img {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-  background: var(--ss-bg-secondary);
-  border-radius: 4px;
-}
-
-.snapstudio-asset-selected-info {
-  flex: 1;
-}
-
-.snapstudio-asset-selected-name {
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--ss-text-color);
-}
-
-.snapstudio-asset-selected-brand {
-  font-size: 0.75rem;
-  color: var(--ss-text-muted);
-}
-
-.snapstudio-asset-selected-arrow {
-  font-size: 0.75rem;
-  color: var(--ss-text-muted);
-}
-
-.snapstudio-asset-options {
   position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  margin-top: 4px;
-  background: var(--ss-bg-color);
-  border: 1px solid var(--ss-border-color);
-  border-radius: var(--ss-radius-sm);
-  box-shadow: var(--ss-shadow-lg);
-  z-index: 100;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.snapstudio-asset-option {
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background: var(--ss-primary-color);
+  color: white;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  cursor: pointer;
-  transition: var(--ss-transition);
-}
-
-.snapstudio-asset-option:hover {
-  background: var(--ss-bg-secondary);
-}
-
-.snapstudio-asset-option.selected {
-  background: rgba(230, 57, 70, 0.1);
-}
-
-.snapstudio-asset-option img {
-  width: 50px;
-  height: 50px;
-  object-fit: contain;
-  background: var(--ss-bg-secondary);
-  border-radius: 4px;
-}
-
-.snapstudio-asset-option-info {
-  flex: 1;
-}
-
-.snapstudio-asset-option-name {
-  font-weight: 600;
+  justify-content: center;
   font-size: 0.875rem;
-  color: var(--ss-text-color);
+  font-weight: bold;
 }
 
-.snapstudio-asset-option-details {
-  font-size: 0.75rem;
-  color: var(--ss-text-muted);
+.snapstudio-selector-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: var(--ss-bg-secondary);
+  border-radius: var(--ss-radius-sm);
+  margin-top: 8px;
+}
+
+.snapstudio-selector-selected p {
+  margin: 0;
+}
+
+/* Compact Asset Selector (dans la barre) */
+.snapstudio-asset-bar .snapstudio-selector {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.snapstudio-asset-bar .snapstudio-selector-grid {
+  display: flex;
+  gap: 8px;
+  max-height: none;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+
+.snapstudio-asset-bar .snapstudio-asset-card {
+  min-width: 80px;
+  max-width: 80px;
+}
+
+.snapstudio-asset-bar .snapstudio-asset-image {
+  aspect-ratio: 1;
+}
+
+.snapstudio-asset-bar .snapstudio-asset-info {
+  display: none;
 }
 
 /* ============================================
@@ -322,68 +485,102 @@
 }
 
 .snapstudio-mask-instructions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  background: #fef3c7;
+  text-align: center;
+  padding: 16px;
+  background: var(--ss-bg-secondary);
   border-radius: var(--ss-radius-sm);
+}
+
+.snapstudio-mask-instructions p {
+  margin: 0;
+}
+
+.snapstudio-mask-instructions p:first-child {
+  font-size: 1.125rem;
+  margin-bottom: 8px;
+}
+
+.snapstudio-mask-hint {
   font-size: 0.875rem;
-  color: #92400e;
+  color: var(--ss-text-muted);
 }
 
 .snapstudio-mask-canvas-wrapper {
   position: relative;
+  margin: 0 auto;
   border-radius: var(--ss-radius);
   overflow: hidden;
+  box-shadow: var(--ss-shadow);
   background: var(--ss-bg-secondary);
 }
 
-.snapstudio-mask-canvas {
+.snapstudio-mask-canvas-wrapper canvas {
   display: block;
-  width: 100%;
-  height: auto;
-  cursor: crosshair;
+  border-radius: var(--ss-radius);
+}
+
+.snapstudio-mask-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 16px 24px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: var(--ss-radius-sm);
+  font-size: 0.875rem;
+  color: var(--ss-text-muted);
 }
 
 .snapstudio-mask-toolbar {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
 }
 
-.snapstudio-mask-toolbar button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
+.snapstudio-mask-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.snapstudio-btn-generate {
+  min-width: 250px;
+  padding: 14px 28px;
+  font-size: 1.125rem;
+}
+
+.snapstudio-mask-warning {
+  text-align: center;
   font-size: 0.875rem;
-  background: var(--ss-bg-secondary);
-  border: 1px solid var(--ss-border-color);
+  color: var(--ss-warning-color);
+  margin: 0;
+}
+
+/* Step Mask Container */
+.snapstudio-step-mask {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ============================================
+   Pipeline Indicator (NOUVEAU pour Pipeline B)
+   ============================================ */
+
+.snapstudio-pipeline-indicator {
+  margin: 12px 0;
+  padding: 10px 16px;
   border-radius: var(--ss-radius-sm);
-  cursor: pointer;
-  transition: var(--ss-transition);
+  font-size: 0.875rem;
+  text-align: center;
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
 }
 
-.snapstudio-mask-toolbar button:hover:not(:disabled) {
-  background: var(--ss-border-color);
-}
-
-.snapstudio-mask-toolbar button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.snapstudio-mask-toolbar button.btn-generate {
-  background: var(--ss-primary-color);
-  color: white;
-  border-color: var(--ss-primary-color);
-  margin-left: auto;
-}
-
-.snapstudio-mask-toolbar button.btn-generate:hover:not(:disabled) {
-  background: var(--ss-secondary-color);
-  border-color: var(--ss-secondary-color);
+.snapstudio-pipeline-indicator.snapstudio-pipeline-warning {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
 }
 
 /* ============================================
@@ -397,7 +594,6 @@
   justify-content: center;
   padding: 48px 24px;
   gap: 24px;
-  min-height: 400px;
 }
 
 .snapstudio-loading-animation {
@@ -450,7 +646,7 @@
   margin: 0 0 8px 0;
 }
 
-.snapstudio-loading-subtitle {
+.snapstudio-loading-wait {
   font-size: 0.875rem;
   color: var(--ss-text-muted);
   margin: 0;
@@ -484,6 +680,17 @@
   text-align: center;
 }
 
+/* Spinner inline pour boutons */
+.snapstudio-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 /* ============================================
    Result Viewer
    ============================================ */
@@ -492,24 +699,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.snapstudio-result-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.snapstudio-result-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--ss-text-color);
-  margin: 0;
-}
-
-.snapstudio-result-remaining {
-  font-size: 0.875rem;
-  color: var(--ss-text-muted);
 }
 
 .snapstudio-result-tabs {
@@ -676,7 +865,6 @@
 }
 
 .snapstudio-result-product-info {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -704,6 +892,7 @@
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 /* ============================================
@@ -715,7 +904,7 @@
   flex-direction: column;
   align-items: center;
   gap: 24px;
-  padding: 32px 24px;
+  padding: 24px;
   text-align: center;
 }
 
@@ -725,77 +914,45 @@
 
 .snapstudio-limit-title {
   font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--ss-text-color);
+  font-weight: 600;
   margin: 0;
 }
 
-.snapstudio-limit-subtitle {
-  font-size: 1rem;
+.snapstudio-limit-message {
   color: var(--ss-text-muted);
   margin: 0;
   max-width: 400px;
 }
 
+.snapstudio-limit-cta {
+  margin-top: 8px;
+}
+
 .snapstudio-limit-generations {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.snapstudio-limit-generation {
-  width: 100px;
-  border-radius: var(--ss-radius-sm);
-  overflow: hidden;
-  box-shadow: var(--ss-shadow);
-}
-
-.snapstudio-limit-generation img {
   width: 100%;
-  height: 80px;
-  object-fit: cover;
+  max-width: 500px;
 }
 
-.snapstudio-limit-generation span {
-  display: block;
-  padding: 6px;
-  font-size: 0.75rem;
-  background: var(--ss-bg-secondary);
-  color: var(--ss-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.snapstudio-limit-benefits {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  text-align: left;
-  padding: 16px;
-  background: var(--ss-bg-secondary);
-  border-radius: var(--ss-radius-sm);
-}
-
-.snapstudio-limit-benefits p {
-  margin: 0 0 8px 0;
-  font-weight: 600;
-  color: var(--ss-text-color);
-}
-
-.snapstudio-limit-benefit {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.snapstudio-limit-generations h4 {
+  margin: 0 0 12px 0;
   font-size: 0.875rem;
   color: var(--ss-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.snapstudio-limit-benefit::before {
-  content: '✓';
-  color: var(--ss-success-color);
-  font-weight: bold;
+.snapstudio-limit-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.snapstudio-limit-gallery img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  border-radius: var(--ss-radius-sm);
+  border: 1px solid var(--ss-border-color);
 }
 
 /* ============================================
@@ -807,18 +964,17 @@
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  padding: 48px 24px;
+  padding: 24px;
   text-align: center;
+  background: #fef2f2;
+  border-radius: var(--ss-radius-sm);
+  margin-top: 16px;
 }
 
-.snapstudio-error-icon {
-  font-size: 3rem;
-}
-
-.snapstudio-error-message {
+.snapstudio-error p {
+  margin: 0;
   font-size: 1rem;
   color: var(--ss-error-color);
-  margin: 0;
 }
 
 /* ============================================
@@ -828,23 +984,40 @@
 @media (max-width: 600px) {
   .snapstudio-widget {
     border-radius: 0;
-    box-shadow: none;
   }
 
-  .snapstudio-header,
+  .snapstudio-header {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+
+  .snapstudio-header-left,
+  .snapstudio-header-right {
+    justify-content: center;
+  }
+
   .snapstudio-content {
     padding: 16px;
   }
 
-  .snapstudio-mask-toolbar {
+  .snapstudio-footer {
+    padding: 12px 16px;
+  }
+
+  .snapstudio-selector-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .snapstudio-ready-preview {
     flex-direction: column;
   }
 
-  .snapstudio-mask-toolbar button.btn-generate {
-    margin-left: 0;
-    width: 100%;
+  .snapstudio-ready-plus {
+    transform: rotate(90deg);
   }
 
+  .snapstudio-actions,
   .snapstudio-result-actions {
     flex-direction: column;
   }
@@ -854,8 +1027,30 @@
     width: 100%;
   }
 
-  .snapstudio-limit-generations {
-    flex-direction: column;
-    align-items: center;
+  .snapstudio-btn-generate {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .snapstudio-mask-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .snapstudio-limit-gallery {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 400px) {
+  .snapstudio-title {
+    font-size: 1rem;
+  }
+
+  .snapstudio-dropzone {
+    padding: 32px 16px;
+  }
+
+  .snapstudio-dropzone-icon {
+    font-size: 2rem;
   }
 }

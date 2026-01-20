@@ -1,5 +1,5 @@
 // ============================================
-// SnapStudio Widget V2 - Export public
+// SnapStudio Widget V3 - Export public
 // ============================================
 
 // Composant principal
@@ -21,20 +21,36 @@ export { SnapStudioClient, initClient, getClient } from './api/client';
 
 // Types
 export type {
+  // Configuration
+  SnapStudioConfig,
+  
+  // Assets & Catalogue
   Asset,
+  Brand,
+  Catalog,
+  
+  // Leads
   Lead,
+  DimensioningData,
+  
+  // Génération
+  MaskBoundingBox,
+  GenerationOptions,
+  GenerateRequest,
+  GenerateResponse,
   GenerationResult,
+  GenerationStatus,
   Generation,
+  
+  // Calendrier / RDV
   TimeSlot,
   Appointment,
-  SnapStudioConfig,
-  SnapStudioProps,
-  GenerationStatus,
+  
+  // Composants
   WidgetStep,
-  DimensioningData,
   MaskCanvasProps,
   ResultViewerProps,
   LimitReachedProps,
-  GenerateRequest,
-  GenerateResponse,
+  SnapStudioProps,
+  WidgetState,
 } from './types';
