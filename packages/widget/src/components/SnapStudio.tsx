@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { Asset, GenerationOptions, GenerateResponse, SnapStudioProps, WidgetState, WidgetStep } from '../types';
+import { getBrandName } from '../types';
 import { ImageUploader } from './ImageUploader';
 import { AssetSelector } from './AssetSelector';
 import { MaskCanvas } from './MaskCanvas';
@@ -31,7 +32,7 @@ const initialState: WidgetState = {
 // ============================================
 
 export function SnapStudio({
-  apiUrl,
+  apiUrl = '',
   vertical = 'hvac',
   catalog,
   onGenerated,
@@ -43,7 +44,8 @@ export function SnapStudio({
   const [state, setState] = useState<WidgetState>(initialState);
 
   // Utiliser le catalogue fourni ou le catalogue par défaut
-  const activeCatalog = catalog || defaultCatalogData;
+  // Cast explicite pour gérer la compatibilité des types
+  const activeCatalog = catalog || (defaultCatalogData as unknown as { id: string; name: string; vertical: string; assets: Asset[] });
 
   // ==========================================
   // Déterminer l'étape actuelle
@@ -83,15 +85,16 @@ export function SnapStudio({
   }, []);
 
   // Gestion de la validation du masque (image marquée)
-  const handleMaskValidate = useCallback((markedImage: string) => {
+  // MaskCanvas retourne (maskBase64, previewBase64) - on utilise previewBase64 comme markedImage
+  const handleMaskComplete = useCallback((maskBase64: string, previewBase64: string) => {
     setState((prev) => ({
       ...prev,
-      markedImage,
+      markedImage: previewBase64,
     }));
   }, []);
 
   // Retour depuis le MaskCanvas vers la sélection
-  const handleMaskBack = useCallback(() => {
+  const handleMaskCancel = useCallback(() => {
     setState((prev) => ({
       ...prev,
       selectedAsset: null,
@@ -99,7 +102,7 @@ export function SnapStudio({
   }, []);
 
   // Gestion des options (legacy, conservé pour compatibilité)
-  const handleOptionsChange = useCallback((options: Partial<GenerationOptions>) => {
+  const _handleOptionsChange = useCallback((options: Partial<GenerationOptions>) => {
     setState((prev) => ({
       ...prev,
       options: { ...prev.options, ...options },
@@ -108,7 +111,7 @@ export function SnapStudio({
 
   // Lancer la génération
   const handleGenerate = useCallback(async () => {
-    if (!state.markedImage || !state.selectedAsset) return;
+    if (!state.markedImage || !state.selectedAsset || !apiUrl) return;
 
     setState((prev) => ({ ...prev, status: 'generating', error: null }));
 
@@ -228,7 +231,7 @@ export function SnapStudio({
               </button>
             </div>
             <AssetSelector
-              assets={activeCatalog.assets}
+              assets={activeCatalog.assets as Asset[]}
               selectedAsset={state.selectedAsset}
               onSelect={handleAssetSelect}
             />
@@ -240,9 +243,9 @@ export function SnapStudio({
             ======================================== */}
         {currentStep === 'mask' && (
           <MaskCanvas
-            image={state.roomImagePreview!}
-            onValidate={handleMaskValidate}
-            onBack={handleMaskBack}
+            roomImage={state.roomImagePreview!}
+            onMaskComplete={handleMaskComplete}
+            onCancel={handleMaskCancel}
           />
         )}
 
@@ -266,7 +269,7 @@ export function SnapStudio({
             {/* Résumé du poêle sélectionné */}
             <div className="snapstudio-ready-summary">
               <p>
-                <strong>{state.selectedAsset!.brand}</strong> - {state.selectedAsset!.name}
+                <strong>{getBrandName(state.selectedAsset!.brand)}</strong> - {state.selectedAsset!.name}
               </p>
               {state.selectedAsset!.metadata?.puissance_kw && (
                 <p className="snapstudio-ready-specs">

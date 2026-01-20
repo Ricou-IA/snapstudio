@@ -1,77 +1,90 @@
-// ============================================
-// Hook useGeneration V2
-// ============================================
-
 import { useState, useCallback } from 'react';
 import type {
-  SnapStudioConfig,
-  GenerateRequest,
+  Asset,
+  GenerationOptions,
   GenerateResponse,
   GenerationStatus,
 } from '../types';
-import { SnapStudioClient } from '../api/client';
 
 interface UseGenerationProps {
-  config: SnapStudioConfig;
-  onSuccess?: (result: GenerateResponse) => void;
+  apiUrl: string;
+  onGenerated?: (result: GenerateResponse) => void;
   onError?: (error: Error) => void;
-  onLimitReached?: () => void;
 }
 
 interface UseGenerationReturn {
   status: GenerationStatus;
   result: GenerateResponse | null;
   error: string | null;
-  generate: (request: Omit<GenerateRequest, 'mockMode'>) => Promise<void>;
+  generate: (
+    roomImage: string,
+    asset: Asset,
+    options?: GenerationOptions
+  ) => Promise<void>;
   reset: () => void;
 }
 
 export function useGeneration({
-  config,
-  onSuccess,
+  apiUrl,
+  onGenerated,
   onError,
-  onLimitReached,
 }: UseGenerationProps): UseGenerationReturn {
   const [status, setStatus] = useState<GenerationStatus>('idle');
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const generate = useCallback(
-    async (request: Omit<GenerateRequest, 'mockMode'>) => {
+    async (
+      roomImage: string,
+      asset: Asset,
+      options?: GenerationOptions
+    ) => {
       setStatus('generating');
       setError(null);
       setResult(null);
 
       try {
-        const client = new SnapStudioClient(config);
-        
-        const response = await client.generate({
-          ...request,
-          mockMode: false,  // FORCÉ À FALSE pour test réel avec fal.ai
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            roomImage,
+            asset: {
+              id: asset.id,
+              name: asset.name,
+              description: asset.description,
+              imageUrl: asset.imageUrl,
+            },
+            options,
+          }),
         });
 
-        setResult(response);
-        setStatus('completed');
-        onSuccess?.(response);
+        const data: GenerateResponse = await response.json();
 
-        // Vérifier si c'était la dernière simulation
-        if (response.simulationsRemaining <= 0) {
-          onLimitReached?.();
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Erreur lors de la génération');
         }
-      } catch (err) {
-        const error = err as Error & { code?: string };
-        
-        if (error.code === 'limit_reached') {
+
+        // Vérifier si limite atteinte
+        if (typeof data.simulationsRemaining === 'number' && data.simulationsRemaining <= 0) {
           setStatus('limit_reached');
-          onLimitReached?.();
         } else {
-          setError(error.message);
-          setStatus('error');
-          onError?.(error);
+          setStatus('completed');
         }
+        
+        setResult(data);
+        onGenerated?.(data);
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Erreur inconnue';
+        setError(errorMessage);
+        setStatus('error');
+        onError?.(err instanceof Error ? err : new Error(errorMessage));
       }
     },
-    [config, onSuccess, onError, onLimitReached]
+    [apiUrl, onGenerated, onError]
   );
 
   const reset = useCallback(() => {

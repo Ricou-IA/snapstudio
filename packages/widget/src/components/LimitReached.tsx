@@ -2,7 +2,7 @@
 // LimitReached - Fin des simulations gratuites
 // ============================================
 
-import type { LimitReachedProps } from '../types';
+import type { LimitReachedProps, Generation } from '../types';
 
 export function LimitReached({
   generations,
@@ -21,7 +21,7 @@ export function LimitReached({
         <div className="snapstudio-limit-gallery">
           <h3>Vos créations :</h3>
           <div className="snapstudio-limit-gallery-grid">
-            {generations.map((gen) => (
+            {generations.map((gen: Generation) => (
               <div key={gen.id} className="snapstudio-limit-gallery-item">
                 <img 
                   src={gen.resultImageUrl || gen.resultImagePath} 

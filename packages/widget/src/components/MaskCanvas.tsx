@@ -1,25 +1,13 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-
-// ============================================================================
-// MaskCanvas - Composant pour dessiner le masque de positionnement
-// 
-// L'utilisateur "gomme" une zone sur sa photo pour indiquer où placer le poêle
-// Le masque est exporté en PNG (blanc sur fond noir) pour l'Edge Function
-// ============================================================================
+import '../styles/maskcanvas.css';
 
 interface MaskCanvasProps {
-  /** Image de la pièce en base64 ou URL */
-  roomImage: string;
-  /** Callback quand le masque est validé */
-  onMaskComplete: (maskBase64: string, previewBase64: string) => void;
-  /** Callback pour annuler */
-  onCancel: () => void;
-  /** Taille du pinceau en pixels */
-  brushSize?: number;
-  /** Couleur de prévisualisation du masque */
-  maskColor?: string;
-  /** Opacité de la prévisualisation */
-  maskOpacity?: number;
+  /** Image uploadée (base64 ou URL) */
+  image: string;
+  /** Callback avec l'image marquée (base64 JPEG) */
+  onValidate: (markedImage: string) => void;
+  /** Retour à l'étape précédente */
+  onBack: () => void;
 }
 
 interface Point {
@@ -27,586 +15,289 @@ interface Point {
   y: number;
 }
 
-export function MaskCanvas({
-  roomImage,
-  onMaskComplete,
-  onCancel,
-  brushSize: initialBrushSize = 40,
-  maskColor = '#FF6B6B',
-  maskOpacity = 0.5,
-}: MaskCanvasProps) {
-  // Refs pour les canvas
+interface Stroke {
+  points: Point[];
+  brushSize: number;
+}
+
+export function MaskCanvas({ image, onValidate, onBack }: MaskCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const imageCanvasRef = useRef<HTMLCanvasElement>(null);
-  const maskCanvasRef = useRef<HTMLCanvasElement>(null);
-  const cursorCanvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
 
-  // State
   const [isDrawing, setIsDrawing] = useState(false);
-  const [brushSize, setBrushSize] = useState(initialBrushSize);
-  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
+  const [brushSize, setBrushSize] = useState(50);
+  const [strokes, setStrokes] = useState<Stroke[]>([]);
+  const [currentStroke, setCurrentStroke] = useState<Point[]>([]);
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [history, setHistory] = useState<ImageData[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  const [hasDrawn, setHasDrawn] = useState(false);
 
-  // Charger l'image et initialiser les canvas
+  // Couleur du marqueur vert semi-transparent
+  const MARKER_COLOR = 'rgba(0, 255, 0, 0.5)';
+
+  // Charger l'image et calculer les dimensions du canvas
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    
     img.onload = () => {
-      // Calculer la taille pour tenir dans le container tout en gardant le ratio
-      const maxWidth = containerRef.current?.clientWidth || 800;
-      const maxHeight = window.innerHeight * 0.6;
-      
-      let width = img.width;
-      let height = img.height;
-      
-      // Redimensionner si nécessaire
-      if (width > maxWidth) {
-        const ratio = maxWidth / width;
-        width = maxWidth;
-        height = height * ratio;
-      }
-      if (height > maxHeight) {
-        const ratio = maxHeight / height;
-        height = height * ratio;
-        width = width * ratio;
-      }
+      imageRef.current = img;
 
-      setCanvasSize({ width: Math.round(width), height: Math.round(height) });
+      // Calculer la taille du canvas en fonction du container
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.clientWidth;
+        const maxHeight = window.innerHeight * 0.6;
 
-      // Dessiner l'image sur le canvas d'image
-      const imageCanvas = imageCanvasRef.current;
-      const maskCanvas = maskCanvasRef.current;
-      const cursorCanvas = cursorCanvasRef.current;
+        // Calculer le ratio pour que l'image rentre dans le container
+        const imgRatio = img.width / img.height;
+        let displayWidth = containerWidth;
+        let displayHeight = containerWidth / imgRatio;
 
-      if (imageCanvas && maskCanvas && cursorCanvas) {
-        // Configurer les canvas
-        imageCanvas.width = width;
-        imageCanvas.height = height;
-        maskCanvas.width = width;
-        maskCanvas.height = height;
-        cursorCanvas.width = width;
-        cursorCanvas.height = height;
+        if (displayHeight > maxHeight) {
+          displayHeight = maxHeight;
+          displayWidth = maxHeight * imgRatio;
+        }
 
-        // Dessiner l'image de fond
-        const imageCtx = imageCanvas.getContext('2d')!;
-        imageCtx.drawImage(img, 0, 0, width, height);
-
-        // Initialiser le canvas de masque (transparent)
-        const maskCtx = maskCanvas.getContext('2d')!;
-        maskCtx.clearRect(0, 0, width, height);
-
-        // Sauvegarder l'état initial dans l'historique
-        const initialState = maskCtx.getImageData(0, 0, width, height);
-        setHistory([initialState]);
-        setHistoryIndex(0);
-
+        setCanvasSize({
+          width: displayWidth,
+          height: displayHeight,
+        });
         setImageLoaded(true);
       }
     };
-
     img.onerror = () => {
-      console.error('Erreur de chargement de l\'image');
+      console.error('Erreur lors du chargement de l\'image');
     };
+    img.src = image;
+  }, [image]);
 
-    img.src = roomImage;
-  }, [roomImage]);
+  // Redessiner le canvas quand les strokes changent
+  const redrawCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    const img = imageRef.current;
 
-  // Dessiner le curseur
-  const drawCursor = useCallback((x: number, y: number) => {
-    const cursorCanvas = cursorCanvasRef.current;
-    if (!cursorCanvas) return;
+    if (!canvas || !ctx || !img) return;
 
-    const ctx = cursorCanvas.getContext('2d')!;
-    ctx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
+    // Effacer le canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Cercle du pinceau
-    ctx.beginPath();
-    ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
-    ctx.strokeStyle = maskColor;
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    // Dessiner l'image de fond
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-    // Point central
-    ctx.beginPath();
-    ctx.arc(x, y, 2, 0, Math.PI * 2);
-    ctx.fillStyle = maskColor;
-    ctx.fill();
-  }, [brushSize, maskColor]);
-
-  // Effacer le curseur
-  const clearCursor = useCallback(() => {
-    const cursorCanvas = cursorCanvasRef.current;
-    if (!cursorCanvas) return;
-    const ctx = cursorCanvas.getContext('2d')!;
-    ctx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
-  }, []);
-
-  // Obtenir les coordonnées relatives au canvas
-  const getCanvasCoordinates = useCallback((e: React.MouseEvent | React.TouchEvent): Point => {
-    const canvas = maskCanvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    let clientX: number, clientY: number;
-    
-    if ('touches' in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
+    // Dessiner tous les strokes
+    const allStrokes = [...strokes];
+    if (currentStroke.length > 0) {
+      allStrokes.push({ points: currentStroke, brushSize });
     }
 
-    return {
-      x: (clientX - rect.left) * scaleX,
-      y: (clientY - rect.top) * scaleY,
-    };
-  }, []);
+    allStrokes.forEach((stroke) => {
+      if (stroke.points.length === 0) return;
 
-  // Dessiner un point de masque
-  const drawMaskPoint = useCallback((x: number, y: number) => {
-    const maskCanvas = maskCanvasRef.current;
-    if (!maskCanvas) return;
+      ctx.strokeStyle = MARKER_COLOR;
+      ctx.fillStyle = MARKER_COLOR;
+      ctx.lineWidth = stroke.brushSize;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
 
-    const ctx = maskCanvas.getContext('2d')!;
-    
-    ctx.beginPath();
-    ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
-    ctx.fillStyle = maskColor;
-    ctx.globalAlpha = maskOpacity;
-    ctx.fill();
-    ctx.globalAlpha = 1;
-  }, [brushSize, maskColor, maskOpacity]);
+      // Dessiner le trait
+      ctx.beginPath();
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
 
-  // Dessiner une ligne entre deux points
-  const drawMaskLine = useCallback((from: Point, to: Point) => {
-    const maskCanvas = maskCanvasRef.current;
-    if (!maskCanvas) return;
-
-    const ctx = maskCanvas.getContext('2d')!;
-    
-    ctx.beginPath();
-    ctx.moveTo(from.x, from.y);
-    ctx.lineTo(to.x, to.y);
-    ctx.strokeStyle = maskColor;
-    ctx.lineWidth = brushSize;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.globalAlpha = maskOpacity;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  }, [brushSize, maskColor, maskOpacity]);
-
-  // Sauvegarder l'état dans l'historique
-  const saveToHistory = useCallback(() => {
-    const maskCanvas = maskCanvasRef.current;
-    if (!maskCanvas) return;
-
-    const ctx = maskCanvas.getContext('2d')!;
-    const imageData = ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-
-    // Supprimer les états après l'index actuel (si on a fait undo puis dessiné)
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(imageData);
-
-    // Limiter la taille de l'historique
-    if (newHistory.length > 20) {
-      newHistory.shift();
-    }
-
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  }, [history, historyIndex]);
-
-  // Dernier point pour le tracé de ligne
-  const lastPointRef = useRef<Point | null>(null);
-
-  // Handlers de dessin
-  const handleStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    const point = getCanvasCoordinates(e);
-    setIsDrawing(true);
-    setHasDrawn(true);
-    lastPointRef.current = point;
-    drawMaskPoint(point.x, point.y);
-  }, [getCanvasCoordinates, drawMaskPoint]);
-
-  const handleMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    const point = getCanvasCoordinates(e);
-    drawCursor(point.x, point.y);
-
-    if (!isDrawing) return;
-    e.preventDefault();
-
-    if (lastPointRef.current) {
-      drawMaskLine(lastPointRef.current, point);
-    }
-    lastPointRef.current = point;
-  }, [getCanvasCoordinates, drawCursor, isDrawing, drawMaskLine]);
-
-  const handleEnd = useCallback(() => {
-    if (isDrawing) {
-      setIsDrawing(false);
-      lastPointRef.current = null;
-      saveToHistory();
-    }
-  }, [isDrawing, saveToHistory]);
-
-  const handleLeave = useCallback(() => {
-    clearCursor();
-    if (isDrawing) {
-      handleEnd();
-    }
-  }, [clearCursor, isDrawing, handleEnd]);
-
-  // Undo
-  const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-
-      const maskCanvas = maskCanvasRef.current;
-      if (maskCanvas && history[newIndex]) {
-        const ctx = maskCanvas.getContext('2d')!;
-        ctx.putImageData(history[newIndex], 0, 0);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
       }
+      ctx.stroke();
+
+      // Dessiner des cercles aux points pour un trait plus épais
+      stroke.points.forEach((point) => {
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, stroke.brushSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    });
+  }, [strokes, currentStroke, brushSize]);
+
+  // Redessiner quand nécessaire
+  useEffect(() => {
+    if (imageLoaded) {
+      redrawCanvas();
     }
-  }, [historyIndex, history]);
+  }, [imageLoaded, redrawCanvas, canvasSize]);
+
+  // Obtenir les coordonnées du pointeur relative au canvas
+  const getCanvasCoordinates = useCallback(
+    (e: React.MouseEvent | React.TouchEvent): Point | null => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+
+      const rect = canvas.getBoundingClientRect();
+      let clientX: number, clientY: number;
+
+      if ('touches' in e) {
+        if (e.touches.length === 0) return null;
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+
+      // Calculer les coordonnées en tenant compte du scale
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY,
+      };
+    },
+    []
+  );
+
+  // Début du dessin
+  const startDrawing = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      e.preventDefault();
+      const point = getCanvasCoordinates(e);
+      if (point) {
+        setIsDrawing(true);
+        setCurrentStroke([point]);
+      }
+    },
+    [getCanvasCoordinates]
+  );
+
+  // Pendant le dessin
+  const draw = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      e.preventDefault();
+      if (!isDrawing) return;
+
+      const point = getCanvasCoordinates(e);
+      if (point) {
+        setCurrentStroke((prev) => [...prev, point]);
+      }
+    },
+    [isDrawing, getCanvasCoordinates]
+  );
+
+  // Fin du dessin
+  const stopDrawing = useCallback(() => {
+    if (isDrawing && currentStroke.length > 0) {
+      setStrokes((prev) => [...prev, { points: currentStroke, brushSize }]);
+      setCurrentStroke([]);
+    }
+    setIsDrawing(false);
+  }, [isDrawing, currentStroke, brushSize]);
+
+  // Annuler le dernier trait
+  const handleUndo = useCallback(() => {
+    setStrokes((prev) => prev.slice(0, -1));
+  }, []);
 
   // Effacer tout
   const handleClear = useCallback(() => {
-    const maskCanvas = maskCanvasRef.current;
-    if (!maskCanvas) return;
-
-    const ctx = maskCanvas.getContext('2d')!;
-    ctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
-    setHasDrawn(false);
-    saveToHistory();
-  }, [saveToHistory]);
-
-  // Exporter le masque
-  const exportMask = useCallback((): string => {
-    const maskCanvas = maskCanvasRef.current;
-    if (!maskCanvas) return '';
-
-    // Créer un canvas temporaire pour le masque final (blanc sur noir)
-    const exportCanvas = document.createElement('canvas');
-    exportCanvas.width = maskCanvas.width;
-    exportCanvas.height = maskCanvas.height;
-    const ctx = exportCanvas.getContext('2d')!;
-
-    // Fond noir
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-
-    // Récupérer les pixels du masque dessiné
-    const maskCtx = maskCanvas.getContext('2d')!;
-    const maskData = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-
-    // Convertir les pixels colorés en blanc
-    const exportData = ctx.getImageData(0, 0, exportCanvas.width, exportCanvas.height);
-    
-    for (let i = 0; i < maskData.data.length; i += 4) {
-      const alpha = maskData.data[i + 3];
-      if (alpha > 0) {
-        // Pixel masqué -> blanc
-        exportData.data[i] = 255;     // R
-        exportData.data[i + 1] = 255; // G
-        exportData.data[i + 2] = 255; // B
-        exportData.data[i + 3] = 255; // A
-      }
-    }
-
-    ctx.putImageData(exportData, 0, 0);
-    return exportCanvas.toDataURL('image/png');
+    setStrokes([]);
+    setCurrentStroke([]);
   }, []);
 
-  // Créer une prévisualisation (image + masque superposé)
-  const createPreview = useCallback((): string => {
-    const imageCanvas = imageCanvasRef.current;
-    const maskCanvas = maskCanvasRef.current;
-    if (!imageCanvas || !maskCanvas) return '';
-
-    const previewCanvas = document.createElement('canvas');
-    previewCanvas.width = imageCanvas.width;
-    previewCanvas.height = imageCanvas.height;
-    const ctx = previewCanvas.getContext('2d')!;
-
-    // Dessiner l'image
-    ctx.drawImage(imageCanvas, 0, 0);
-
-    // Superposer le masque avec opacité
-    ctx.globalAlpha = 0.4;
-    ctx.drawImage(maskCanvas, 0, 0);
-    ctx.globalAlpha = 1;
-
-    return previewCanvas.toDataURL('image/jpeg', 0.9);
-  }, []);
-
-  // Valider le masque
+  // Valider et exporter l'image avec le marqueur
   const handleValidate = useCallback(() => {
-    if (!hasDrawn) {
-      alert('Veuillez dessiner une zone pour le poêle');
-      return;
-    }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    const maskBase64 = exportMask();
-    const previewBase64 = createPreview();
-    onMaskComplete(maskBase64, previewBase64);
-  }, [hasDrawn, exportMask, createPreview, onMaskComplete]);
+    // Exporter en JPEG base64
+    const markedImage = canvas.toDataURL('image/jpeg', 0.9);
+    onValidate(markedImage);
+  }, [onValidate]);
+
+  // Vérifier si on peut valider (au moins un trait dessiné)
+  const canValidate = strokes.length > 0;
 
   return (
-    <div className="snapstudio-mask-canvas" ref={containerRef}>
-      {/* Instructions */}
-      <div className="snapstudio-mask-instructions">
-        <h3>📍 Dessinez la zone où placer le poêle</h3>
-        <p>
-          Utilisez votre doigt ou souris pour "gommer" l'endroit où vous souhaitez voir le poêle.
-          L'IA calculera automatiquement la bonne taille selon la perspective.
-        </p>
+    <div className="maskcanvas-container" ref={containerRef}>
+      <div className="maskcanvas-instructions">
+        <h3>📍 Indiquez l'emplacement du poêle</h3>
+        <p>Dessinez une zone verte à l'endroit où vous souhaitez voir le poêle</p>
       </div>
 
-      {/* Zone de dessin */}
-      <div 
-        className="snapstudio-mask-canvas-container"
-        style={{ 
-          width: canvasSize.width, 
-          height: canvasSize.height,
-          position: 'relative',
-          margin: '0 auto',
-          cursor: 'none',
-        }}
-      >
-        {/* Canvas de l'image (fond) */}
-        <canvas
-          ref={imageCanvasRef}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-          }}
-        />
-
-        {/* Canvas du masque (dessin) */}
-        <canvas
-          ref={maskCanvasRef}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-          }}
-          onMouseDown={handleStart}
-          onMouseMove={handleMove}
-          onMouseUp={handleEnd}
-          onMouseLeave={handleLeave}
-          onTouchStart={handleStart}
-          onTouchMove={handleMove}
-          onTouchEnd={handleEnd}
-        />
-
-        {/* Canvas du curseur */}
-        <canvas
-          ref={cursorCanvasRef}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            pointerEvents: 'none',
-          }}
-        />
-
-        {/* Overlay de chargement */}
-        {!imageLoaded && (
-          <div className="snapstudio-mask-loading">
-            Chargement de l'image...
-          </div>
+      <div className="maskcanvas-canvas-wrapper">
+        {!imageLoaded ? (
+          <div className="maskcanvas-loading">Chargement de l'image...</div>
+        ) : (
+          <canvas
+            ref={canvasRef}
+            width={canvasSize.width}
+            height={canvasSize.height}
+            className="maskcanvas-canvas"
+            onMouseDown={startDrawing}
+            onMouseMove={draw}
+            onMouseUp={stopDrawing}
+            onMouseLeave={stopDrawing}
+            onTouchStart={startDrawing}
+            onTouchMove={draw}
+            onTouchEnd={stopDrawing}
+            onTouchCancel={stopDrawing}
+          />
         )}
       </div>
 
-      {/* Contrôles */}
-      <div className="snapstudio-mask-controls">
-        {/* Taille du pinceau */}
-        <div className="snapstudio-mask-brush-control">
-          <label>
-            Taille du pinceau: {brushSize}px
+      <div className="maskcanvas-controls">
+        <div className="maskcanvas-brush-control">
+          <label htmlFor="brush-size">
+            🖌️ Taille du pinceau : {brushSize}px
           </label>
           <input
+            id="brush-size"
             type="range"
-            min="10"
+            min="20"
             max="100"
             value={brushSize}
             onChange={(e) => setBrushSize(Number(e.target.value))}
-            className="snapstudio-mask-brush-slider"
+            className="maskcanvas-slider"
           />
         </div>
 
-        {/* Boutons d'action */}
-        <div className="snapstudio-mask-actions">
+        <div className="maskcanvas-actions">
           <button
-            className="snapstudio-btn-secondary"
+            className="maskcanvas-btn maskcanvas-btn-secondary"
+            onClick={onBack}
+            type="button"
+          >
+            ← Retour
+          </button>
+          <button
+            className="maskcanvas-btn maskcanvas-btn-secondary"
             onClick={handleUndo}
-            disabled={historyIndex <= 0}
+            disabled={strokes.length === 0}
+            type="button"
           >
             ↩ Annuler
           </button>
           <button
-            className="snapstudio-btn-secondary"
+            className="maskcanvas-btn maskcanvas-btn-secondary"
             onClick={handleClear}
-            disabled={!hasDrawn}
+            disabled={strokes.length === 0}
+            type="button"
           >
-            🗑 Effacer
+            🗑️ Effacer
           </button>
           <button
-            className="snapstudio-btn-secondary"
-            onClick={onCancel}
-          >
-            ✕ Retour
-          </button>
-          <button
-            className="snapstudio-btn-primary"
+            className="maskcanvas-btn maskcanvas-btn-primary"
             onClick={handleValidate}
-            disabled={!hasDrawn}
+            disabled={!canValidate}
+            type="button"
           >
-            ✓ Valider la zone
+            ✓ Valider
           </button>
         </div>
       </div>
 
-      {/* Styles intégrés */}
-      <style>{`
-        .snapstudio-mask-canvas {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-          padding: 16px;
-        }
-
-        .snapstudio-mask-instructions {
-          text-align: center;
-          padding: 12px;
-          background: var(--ss-bg-secondary, #f8fafc);
-          border-radius: 8px;
-        }
-
-        .snapstudio-mask-instructions h3 {
-          margin: 0 0 8px 0;
-          font-size: 1.1rem;
-          color: var(--ss-text-color, #1e293b);
-        }
-
-        .snapstudio-mask-instructions p {
-          margin: 0;
-          font-size: 0.875rem;
-          color: var(--ss-text-muted, #64748b);
-        }
-
-        .snapstudio-mask-canvas-container {
-          border: 2px solid var(--ss-border-color, #e2e8f0);
-          border-radius: 8px;
-          overflow: hidden;
-          background: #f0f0f0;
-          touch-action: none;
-        }
-
-        .snapstudio-mask-loading {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(255, 255, 255, 0.9);
-          font-size: 1rem;
-          color: var(--ss-text-muted, #64748b);
-        }
-
-        .snapstudio-mask-controls {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .snapstudio-mask-brush-control {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .snapstudio-mask-brush-control label {
-          font-size: 0.875rem;
-          color: var(--ss-text-color, #1e293b);
-        }
-
-        .snapstudio-mask-brush-slider {
-          width: 100%;
-          height: 8px;
-          border-radius: 4px;
-          background: var(--ss-border-color, #e2e8f0);
-          outline: none;
-          -webkit-appearance: none;
-        }
-
-        .snapstudio-mask-brush-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: var(--ss-primary-color, #2563eb);
-          cursor: pointer;
-        }
-
-        .snapstudio-mask-brush-slider::-moz-range-thumb {
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: var(--ss-primary-color, #2563eb);
-          cursor: pointer;
-          border: none;
-        }
-
-        .snapstudio-mask-actions {
-          display: flex;
-          gap: 12px;
-          flex-wrap: wrap;
-          justify-content: center;
-        }
-
-        .snapstudio-mask-actions button {
-          min-width: 120px;
-        }
-
-        .snapstudio-mask-actions button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        @media (max-width: 600px) {
-          .snapstudio-mask-actions {
-            flex-direction: column;
-          }
-
-          .snapstudio-mask-actions button {
-            width: 100%;
-          }
-        }
-      `}</style>
+      {!canValidate && imageLoaded && (
+        <div className="maskcanvas-hint">
+          💡 Dessinez une zone sur l'image pour indiquer où placer le poêle
+        </div>
+      )}
     </div>
   );
 }
-
-export default MaskCanvas;
