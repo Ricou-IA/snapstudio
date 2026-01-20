@@ -208,7 +208,7 @@ export class SnapStudioClient {
 
     // Construire le body selon le pipeline
     const body: Record<string, unknown> = {
-      asset_id: request.assetId,
+      asset_id: request.asset_id,
       mock_mode: request.mockMode ?? false,
     };
 
@@ -232,12 +232,17 @@ export class SnapStudioClient {
       body.mask_image = request.maskImage;
     }
 
+    // Construire les headers avec leadToken optionnel
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (request.leadToken) {
+      headers['X-Lead-Token'] = request.leadToken;
+    }
+
     const response = await fetch(`${this.baseUrl}/generate`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Lead-Token': request.leadToken,
-      },
+      headers,
       body: JSON.stringify(body),
     });
 
@@ -253,11 +258,12 @@ export class SnapStudioClient {
     }
 
     return {
+      success: true,
       generationId: data.generation_id,
       resultImageUrl: data.result_image_url,
       simulationsRemaining: data.simulations_remaining,
       asset: data.asset,
-      pipeline: data.pipeline, // ['client-compositing', 'iclight-v2'] ou ['flux-kontext-inpaint', 'iclight-v2']
+      pipeline: data.pipeline,
       generationTimeMs: data.generation_time_ms,
       costEstimateUsd: data.cost_estimate_usd,
     };

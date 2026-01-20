@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { Asset, GenerationOptions, GenerateResponse, SnapStudioProps, WidgetState, WidgetStep } from '../types';
+import type { Asset, GenerateResponse, SnapStudioProps, WidgetState, WidgetStep } from '../types';
 import { getBrandName } from '../types';
 import { ImageUploader } from './ImageUploader';
 import { AssetSelector } from './AssetSelector';
@@ -43,6 +43,9 @@ export function SnapStudio({
 }: SnapStudioProps) {
   const [state, setState] = useState<WidgetState>(initialState);
 
+  // Debug: Log apiUrl at mount
+  console.log('[SnapStudio] Component mounted with apiUrl:', apiUrl || '(empty)');
+
   // Utiliser le catalogue fourni ou le catalogue par défaut
   // Cast explicite pour gérer la compatibilité des types
   const activeCatalog = catalog || (defaultCatalogData as unknown as { id: string; name: string; vertical: string; assets: Asset[] });
@@ -68,16 +71,19 @@ export function SnapStudio({
   // ==========================================
 
   // Gestion de l'upload d'image
-  const handleImageUpload = useCallback((base64: string, preview: string) => {
+  // ImageUploader V2 envoie un seul paramètre (base64)
+  const handleImageUpload = useCallback((base64: string) => {
+    console.log('[SnapStudio] Image uploaded, length:', base64.length);
     setState((prev) => ({
       ...prev,
       roomImage: base64,
-      roomImagePreview: preview,
+      roomImagePreview: base64, // Même valeur car déjà redimensionnée
     }));
   }, []);
 
   // Gestion de la sélection d'asset
   const handleAssetSelect = useCallback((asset: Asset) => {
+    console.log('[SnapStudio] Asset selected:', asset.name, asset.id);
     setState((prev) => ({
       ...prev,
       selectedAsset: asset,
@@ -85,37 +91,60 @@ export function SnapStudio({
   }, []);
 
   // Gestion de la validation du masque (image marquée)
-  // MaskCanvas retourne (maskBase64, previewBase64) - on utilise previewBase64 comme markedImage
-  const handleMaskComplete = useCallback((maskBase64: string, previewBase64: string) => {
+  // MaskCanvas retourne un seul paramètre (markedImage en base64 JPEG)
+  const handleMaskComplete = useCallback((markedImage: string) => {
+    console.log('[SnapStudio] Mask completed, length:', markedImage.length);
     setState((prev) => ({
       ...prev,
-      markedImage: previewBase64,
+      markedImage: markedImage,
     }));
   }, []);
 
   // Retour depuis le MaskCanvas vers la sélection
   const handleMaskCancel = useCallback(() => {
+    console.log('[SnapStudio] Mask cancelled, going back to asset selection');
     setState((prev) => ({
       ...prev,
       selectedAsset: null,
     }));
   }, []);
 
-  // Gestion des options (legacy, conservé pour compatibilité)
-  const _handleOptionsChange = useCallback((options: Partial<GenerationOptions>) => {
-    setState((prev) => ({
-      ...prev,
-      options: { ...prev.options, ...options },
-    }));
-  }, []);
-
   // Lancer la génération
   const handleGenerate = useCallback(async () => {
-    if (!state.markedImage || !state.selectedAsset || !apiUrl) return;
+    console.log('[SnapStudio] ========================================');
+    console.log('[SnapStudio] handleGenerate called');
+    console.log('[SnapStudio] apiUrl:', apiUrl || '(empty)');
+    console.log('[SnapStudio] markedImage:', state.markedImage ? `OK (${state.markedImage.length} chars)` : 'MISSING');
+    console.log('[SnapStudio] selectedAsset:', state.selectedAsset ? state.selectedAsset.name : 'MISSING');
+    console.log('[SnapStudio] ========================================');
+
+    if (!state.markedImage) {
+      console.error('[SnapStudio] ❌ markedImage is missing');
+      return;
+    }
+    if (!state.selectedAsset) {
+      console.error('[SnapStudio] ❌ selectedAsset is missing');
+      return;
+    }
+    if (!apiUrl) {
+      console.error('[SnapStudio] ❌ apiUrl is empty or not configured');
+      setState((prev) => ({
+        ...prev,
+        status: 'error',
+        error: 'URL de l\'API non configurée. Vérifiez la prop apiUrl du widget.',
+      }));
+      return;
+    }
 
     setState((prev) => ({ ...prev, status: 'generating', error: null }));
 
     try {
+      console.log('[SnapStudio] Calling API:', apiUrl);
+      console.log('[SnapStudio] Request body:', {
+        asset_id: state.selectedAsset.id,
+        marked_image: `(base64, ${state.markedImage.length} chars)`,
+      });
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -127,7 +156,9 @@ export function SnapStudio({
         }),
       });
 
+      console.log('[SnapStudio] Response status:', response.status);
       const data: GenerateResponse = await response.json();
+      console.log('[SnapStudio] Response data:', data);
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || 'Erreur lors de la génération');
@@ -141,6 +172,7 @@ export function SnapStudio({
 
       onGenerated?.(data);
     } catch (err) {
+      console.error('[SnapStudio] ❌ Error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue';
       setState((prev) => ({
         ...prev,
@@ -153,11 +185,13 @@ export function SnapStudio({
 
   // Réinitialiser complètement
   const handleReset = useCallback(() => {
+    console.log('[SnapStudio] Reset to initial state');
     setState(initialState);
   }, []);
 
   // Retour à l'étape du masque pour modifier
   const handleBackToMask = useCallback(() => {
+    console.log('[SnapStudio] Going back to mask step');
     setState((prev) => ({
       ...prev,
       markedImage: null,
@@ -170,6 +204,7 @@ export function SnapStudio({
   // Gestion du CTA
   const handleCtaClick = useCallback(() => {
     if (state.selectedAsset && state.result?.image?.url) {
+      console.log('[SnapStudio] CTA clicked for asset:', state.selectedAsset.name);
       onCtaClick?.(state.selectedAsset, state.result.image.url);
     }
   }, [state.selectedAsset, state.result, onCtaClick]);
@@ -243,9 +278,9 @@ export function SnapStudio({
             ======================================== */}
         {currentStep === 'mask' && (
           <MaskCanvas
-            roomImage={state.roomImagePreview!}
-            onMaskComplete={handleMaskComplete}
-            onCancel={handleMaskCancel}
+            image={state.roomImagePreview!}
+            onValidate={handleMaskComplete}
+            onBack={handleMaskCancel}
           />
         )}
 
@@ -296,6 +331,21 @@ export function SnapStudio({
                 ✨ Générer l'image
               </button>
             </div>
+
+            {/* Debug info (à retirer en production) */}
+            {!apiUrl && (
+              <div style={{ 
+                marginTop: '16px', 
+                padding: '12px', 
+                background: '#fef2f2', 
+                border: '1px solid #fecaca',
+                borderRadius: '8px',
+                color: '#dc2626',
+                fontSize: '14px'
+              }}>
+                ⚠️ <strong>Debug:</strong> apiUrl n'est pas configurée. Le bouton ne fonctionnera pas.
+              </div>
+            )}
           </div>
         )}
 

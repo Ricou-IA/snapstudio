@@ -24,10 +24,10 @@ export function LimitReached({
             {generations.map((gen: Generation) => (
               <div key={gen.id} className="snapstudio-limit-gallery-item">
                 <img 
-                  src={gen.resultImageUrl || gen.resultImagePath} 
-                  alt={`Simulation ${gen.asset.name}`}
+                  src={gen.resultImageUrl} 
+                  alt={`Simulation ${gen.asset?.name || 'Sans nom'}`}
                 />
-                <span>{gen.asset.name}</span>
+                <span>{gen.asset?.name || 'Sans nom'}</span>
               </div>
             ))}
           </div>

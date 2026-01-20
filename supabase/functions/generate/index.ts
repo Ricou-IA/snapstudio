@@ -46,7 +46,7 @@ interface Asset {
   name: string;
   brand_id: string;
   description: string;
-  image_principale: string;
+  image_original: string;
   image_detouree: string;
 }
 
@@ -169,7 +169,7 @@ serve(async (req: Request) => {
 
     const { data: asset, error: assetError } = await supabase
       .from("snapstudio_assets")
-      .select("id, name, brand_id, description, image_principale, image_detouree")
+      .select("id, name, brand_id, description, image_original, image_detouree")
       .eq("id", body.asset_id)
       .single();
 
